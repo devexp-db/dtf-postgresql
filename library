@@ -1,0 +1,192 @@
+# PostgreSQL related helper functions.
+
+# PostgreSQL tests require beakerlib:
+# https://fedorahosted.org/beakerlib/
+
+. /usr/share/beakerlib/beakerlib.sh || exit 1
+
+dtf_postgresql_check_started()
+{
+    service postgresql status &>/dev/null
+    rlAssertEquals "service postgresql should be started" $? 0
+}
+
+dtf_postgresql_check_stopped()
+{
+    service postgresql status &>/dev/null
+    rlAssertEquals "service postgresql should be stopped" $? 3
+}
+
+dtf_postgresql_phase_cleanup()
+{
+    rlPhaseStartCleanup
+    rlServiceStop postgresql
+    dtf_postgresql_check_stopped
+    rlRun "rm -rf /var/lib/pgsql/data"
+    rlRun "rm -rf /var/lib/pgsql/*.log"
+    rlPhaseEnd
+}
+
+dtf_postgresql_checkphase()
+{
+    rlPhaseStart FAIL "Check"
+        rlAssertRpm postgresql-server
+
+        dtf_postgresql_check_stopped
+
+        rlAssertNotExists "/var/lib/pgsql/data/PG_VERSION"
+        while read line; do
+            rlAssertNotExists "$line"
+        done < <(find /var/lib/pgsql/ -maxdepth 1 -name '*.log')
+
+        rlAssert0 "run under root user" "$(id -u)"
+
+        rlGetPhaseState
+        test $? -gt 0 \
+            && echo >&2 "Check phase failed." && exit 1
+    rlPhaseEnd
+}
+
+dtf_postgresql_test_init()
+{
+    rlJournalStart
+    dtf_postgresql_checkphase
+    rlPhaseStartTest
+}
+
+dtf_postgresql_test_finish()
+{
+    rlPhaseEnd
+    dtf_generate_results_tarball "$BEAKERLIB_DIR"
+    dtf_postgresql_phase_cleanup
+    rlJournalEnd
+    rlGetTestState || return 1
+}
+
+dtf_postgresql_unpack_remote_data()
+(
+    local tarball="$1"
+    cd /var/lib/pgsql || return 1
+    set -o pipefail
+    echo "downloading '$tarball'"
+    curl "$tarball" | tar -xzf -
+)
+
+# Detect current distribution and print set of "distro version action" lines
+# where DISTRO may be rhel/fedora, VERSION may be e.g. 6.6 for rhel or 20 for
+# Fedora.  ACTION is either run or upgrade and it means whether currently
+# installed PostgreSQL server is able to RUN the older data from DISTRO-VERSION
+# or it should be first upgraded.
+#
+# What versions are currently in supported Fedora versions:
+#
+#       f20 & f21       (9.3.8)
+#       f22 & rawhide   (9.4.3)
+#
+# Older Fedora versions:
+#
+#       f17             (9.1.9)
+#       f18             (9.2.5)
+#       f19             (9.2.9)
+
+dtf_postgresql_upgrade_matrix()
+{
+    if rlIsFedora 19; then
+        # echo fedora 17 upgrade
+        # echo fedora 18 run
+        echo fedora 19 run
+    elif rlIsFedora 20; then
+        # echo fedora 18 upgrade
+        echo fedora 19 upgrade
+        echo fedora 20 run
+    elif rlIsFedora 21; then
+        echo fedora 19 upgrade
+        echo fedora 20 run
+        echo fedora 21 run
+    elif rlIsFedora 22; then
+        echo fedora 20 upgrade
+        echo fedora 21 upgrade
+    elif rlIsFedora 23; then
+        echo fedora 20 upgrade
+        echo fedora 21 upgrade
+        echo fedora 22 run
+    fi
+}
+
+dtf_postgresql_cb_upgrade()
+{
+    local dashdash=""
+    if rlIsFedora 22; then
+        dashdash="--"
+    fi
+    rlRun "postgresql-setup $dashdash""upgrade"
+}
+
+dtf_postgresql_cb_upgrade_select()
+{
+    cat
+}
+
+dtf_postgresql_upgrade_tour()
+{
+    local arch=$(uname -i)
+    local rv=0
+
+    items="$(dtf_postgresql_upgrade_matrix | dtf_postgresql_cb_upgrade_select)"
+    test "$items" = "$(:)" && return 0
+
+    while read distro version action; do
+        echo "--> Performing upgrade: $distro-$version - $action"
+
+        url="$1/$distro/$version/$arch/$2"
+
+        dtf_postgresql_unpack_remote_data "$url" || return 1
+
+        case "$action" in
+        upgrade)
+            dtf_postgresql_cb_upgrade
+            if test $? -ne 0; then
+                rv=1
+                find /var/lib/pgsql -maxdepth 1 -name '*.log' | \
+                while read line; do
+                    echo "====== reading log $line ======"
+                    cat "$line"
+                done
+            fi
+            ;;
+        *)
+            ;;
+        esac
+
+        rlServiceStart postgresql
+        dtf_postgresql_check_started
+        rlServiceStop postgresql
+        dtf_postgresql_check_stopped
+
+        rm -rf /var/lib/pgsql/data
+    done <<<"$items"
+
+    return $rv
+}
+
+dtf_postgresql_initdb()
+{
+    if rlIsFedora 18 19 20 21 || rlIsRHEL 5 6 7; then
+        rlRun "postgresql-setup initdb"
+    else
+        rlRun "postgresql-setup --initdb"
+    fi
+}
+
+dtf_postgresql_data_mirror()
+{
+    if test -z "$___mirror_chosen"; then
+        for i in "${dtf_dataurls[@]}"; do
+            echo >&2 "trying $i"
+            timeout 3 curl "$i" >/dev/null && ___mirror_chosen="$i" && break
+        done
+        test -z "$___mirror_chosen" && return 1
+    fi
+
+    echo "$___mirror_chosen"
+}

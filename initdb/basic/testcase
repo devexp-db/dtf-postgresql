@@ -1,0 +1,20 @@
+export DTF_TEST_ID="initdb-basic"
+export DTF_TEST_DESCRIPTION="\
+Check that the syntax 'postgresql-setup --initdb' works together with following
+'service start postgresql'."
+
+run()
+{
+    dtf_postgresql_test_init
+    if rlIsFedora 18 19 20 21 || rlIsRHEL 5 6 7; then
+        # This syntaxe is not supported on oler systems.
+        :
+    else
+        rlRun "postgresql-setup --initdb"
+        rlServiceStart postgresql
+        dtf_postgresql_check_started
+    fi
+
+    dtf_postgresql_test_finish
+}
+

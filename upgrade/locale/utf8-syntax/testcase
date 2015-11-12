@@ -1,0 +1,22 @@
+export DTF_TEST_ID="upgrade-locale-utf8-syntax"
+export DTF_TEST_DESCRIPTION="Check postgresql-setup --upgrade works even when \
+the system locale changed from xx_XX.utf8 to xx_XX.UTF-8"
+
+run()
+{
+    dtf_postgresql_test_init
+
+    dtf_postgresql_cb_upgrade_select()
+    {
+        if rlIsFedora 20 21 22; then
+            cat
+        else
+            cat >/dev/null
+        fi
+    }
+
+    dtf_postgresql_upgrade_tour "$(dtf_postgresql_data_mirror)" locale-utf-typo.tar.gz
+    rlAssert0 "test wrapper should finish successfully" $?
+
+    dtf_postgresql_test_finish
+}

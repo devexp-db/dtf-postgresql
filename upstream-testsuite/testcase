@@ -1,0 +1,30 @@
+export DTF_TEST_ID="upstream-testsuite"
+export DTF_TEST_DESCRIPTION="Check package upstream testsuite"
+
+run()
+{
+    dtf_postgresql_test_init
+
+    dtf_postgresql_initdb
+    rlAssert0 "test initdb finished successfully" $?
+
+    rlServiceStart postgresql
+    dtf_postgresql_check_started
+
+    local where="$(rpm --eval "%_libdir")"
+    where+="/pgsql/test/regress/"
+
+    su - postgres -c "make -C '$where' check"
+    rlAssert0 "regression testing should success" $?
+
+    find "$where" -name 'regression.diffs' | \
+        while read line; do
+            echo "file $line"
+            cat "$line"
+        done
+
+    rlServiceStop postgresql
+    dtf_postgresql_check_stopped
+
+    dtf_postgresql_test_finish
+}

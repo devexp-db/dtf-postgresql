@@ -1,20 +1,36 @@
-export DTF_TEST_ID="initdb-basic"
-export DTF_TEST_DESCRIPTION="\
-Check that the syntax 'postgresql-setup --initdb' works together with following
-'service start postgresql'."
+. "$top_srcdir"/library
 
-run()
+pgdtf_init_server_test
+
+try_start_stop ()
 {
-    dtf_postgresql_test_init
-    if rlIsFedora 18 19 20 21 || rlIsRHEL 5 6 7; then
-        # This syntaxe is not supported on oler systems.
-        :
-    else
-        rlRun "postgresql-setup --initdb"
-        rlServiceStart postgresql
-        dtf_postgresql_check_started
-    fi
-
-    dtf_postgresql_test_finish
+    dtf_assert cmd "service postgresql start"                   0
+    dtf_assert cmd "service postgresql stop"                    0
+    dtf_assert cmd "test -f /var/lib/pgsql/data/PG_VERSION"     0
+    pgdtf_cleanup_after_initdb
 }
 
+older_systems ()
+{
+    dtf_assert cmd "postgresql-setup --initdb"  2
+    dtf_assert cmd "postgresql-setup initdb"    0
+    try_start_stop
+}
+
+newer_systems ()
+{
+    dtf_assert cmd 'postgresql-setup --initdb'  0
+    try_start_stop
+}
+
+# {% if config.os.id == "fedora" and config.os.version < 22 %}
+older_systems
+# {% elif config.os.id == "rhel" and float(config.os.version) < 8 %}
+older_systems
+# {% elif config.os.id in ["fedora", "rhel"] %}
+newer_systems
+# {% else %}
+# TODO: Fail somehow during 'dtf-gen'.  We don't dtf_skip here because this
+# should (a) never happen and (b) it would not FAIL the whole testsuite.
+dtf_fail "this test is not available for this system"
+# {% endif %}

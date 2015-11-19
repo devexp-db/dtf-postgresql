@@ -1,9 +1,39 @@
 # PostgreSQL related helper functions.
 
-# PostgreSQL tests require beakerlib:
-# https://fedorahosted.org/beakerlib/
+__pgdtf_basic_assert ()
+{
+    ### Check that we can't actually brake user's system. ###
+    dtf_assert cmd 'service postgresql status' 3
 
-. /usr/share/beakerlib/beakerlib.sh || exit 1
+    dtf_assert_right_distro
+
+    test -f '/var/lib/pgsql/data/PG_VERSION' 2>/dev/null \
+        && dtf_fail 'PG_VERSION file should not exist in $datadir'
+
+    test -e /var/lib/pgsql || return 0
+    find /var/lib/pgsql/ -maxdepth 1 -name '*.log' -exec false {} +
+    test $? -eq 0 || dtf_fail 'some .log files exist in $datadir'
+}
+
+pgdtf_init ()
+{
+    # TODO: don't require findutils
+    dtf_prereq pkg installed findutils
+    __pgdtf_basic_assert
+}
+
+pgdtf_init_server_test ()
+{
+    pgdtf_init
+    dtf_prereq pkg installed postgresql-server
+}
+
+pgdtf_cleanup_after_initdb ()
+{
+    dtf_assert cmd 'rm -r /var/lib/pgsql/data/*' 0
+    dtf_assert cmd 'rm /var/lib/pgsql/*.log'     0
+}
+
 
 dtf_postgresql_check_started()
 {
@@ -15,36 +45,6 @@ dtf_postgresql_check_stopped()
 {
     service postgresql status &>/dev/null
     rlAssertEquals "service postgresql should be stopped" $? 3
-}
-
-dtf_postgresql_phase_cleanup()
-{
-    rlPhaseStartCleanup
-    rlServiceStop postgresql
-    dtf_postgresql_check_stopped
-    rlRun "rm -rf /var/lib/pgsql/data"
-    rlRun "rm -rf /var/lib/pgsql/*.log"
-    rlPhaseEnd
-}
-
-dtf_postgresql_checkphase()
-{
-    rlPhaseStart FAIL "Check"
-        rlAssertRpm postgresql-server
-
-        dtf_postgresql_check_stopped
-
-        rlAssertNotExists "/var/lib/pgsql/data/PG_VERSION"
-        while read line; do
-            rlAssertNotExists "$line"
-        done < <(find /var/lib/pgsql/ -maxdepth 1 -name '*.log')
-
-        rlAssert0 "run under root user" "$(id -u)"
-
-        rlGetPhaseState
-        test $? -gt 0 \
-            && echo >&2 "Check phase failed." && exit 1
-    rlPhaseEnd
 }
 
 dtf_postgresql_test_init()

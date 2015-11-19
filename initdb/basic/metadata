@@ -1,0 +1,4 @@
+DTF_TEST_ID="initdb-basic"
+DTF_TEST_DESCRIPTION="\
+Check that the syntax 'postgresql-setup --initdb' works together with following
+'service start postgresql'."

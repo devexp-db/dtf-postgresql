@@ -34,17 +34,41 @@ pgdtf_cleanup_after_initdb ()
     dtf_assert cmd 'rm /var/lib/pgsql/*.log'     0
 }
 
-
-dtf_postgresql_check_started()
+pgdtf_initdb ()
 {
-    service postgresql status &>/dev/null
-    rlAssertEquals "service postgresql should be started" $? 0
+    set dummy "{{ config.os.id }}" "{{ config.os.version }}" ; shift
+    case $1-$2 in
+      fedora-18|fedora-19|fedora-20|fedora-21|rhel-5*|rhel-6*|rhel-7*)
+        dtf_assert cmd 'postgresql-setup initdb'  0
+        ;;
+      fedora*|rhel*)
+        dtf_assert cmd 'postgresql-setup --initdb'  0
+        ;;
+    esac
 }
 
-dtf_postgresql_check_stopped()
+pgdtf_check_started ()
 {
-    service postgresql status &>/dev/null
-    rlAssertEquals "service postgresql should be stopped" $? 3
+    dtf_assert cmd "service postgresql status" 0
+}
+
+pgdtf_initdb_and_start ()
+{
+    pgdtf_initdb
+    dtf_assert cmd 'service postgresql start' 0
+    pgdtf_check_started
+}
+
+pgdtf_stop_and_clean ()
+{
+    dtf_assert cmd "service postgresql stop" 0
+    pgdtf_check_stopped
+    pgdtf_cleanup_after_initdb
+}
+
+pgdtf_check_stopped ()
+{
+    dtf_assert cmd 'service postgresql status' 3
 }
 
 dtf_postgresql_test_init()
@@ -167,15 +191,6 @@ dtf_postgresql_upgrade_tour()
     done <<<"$items"
 
     return $rv
-}
-
-dtf_postgresql_initdb()
-{
-    if rlIsFedora 18 19 20 21 || rlIsRHEL 5 6 7; then
-        rlRun "postgresql-setup initdb"
-    else
-        rlRun "postgresql-setup --initdb"
-    fi
 }
 
 dtf_postgresql_data_mirror()

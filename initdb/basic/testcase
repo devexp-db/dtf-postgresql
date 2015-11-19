@@ -21,6 +21,10 @@ newer_systems ()
 {
     dtf_assert cmd 'postgresql-setup --initdb'  0
     try_start_stop
+
+    # Check the compatibility with older systems.
+    dtf_assert cmd 'postgresql-setup initdb'    0
+    try_start_stop
 }
 
 # {% if config.os.id == "fedora" and config.os.version < 22 %}

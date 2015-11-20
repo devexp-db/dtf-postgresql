@@ -8,8 +8,8 @@ pgdtf_initdb_and_start
 
 where={{ m.libdir }}/pgsql/test/regress/
 
-su - postgres -c "make -C '$where' check"
-rc=$?
+rc=false
+su - postgres -c "make -C '$where' check" && rc=:
 
 if test $rc -ne 0; then
   find "$where" -name 'regression.diffs' | \
@@ -21,4 +21,4 @@ fi
 
 pgdtf_stop_and_clean
 
-test $rc -eq 0 || dtf_fail "testsuite failed"
+$rc || dtf_fail "testsuite failed"

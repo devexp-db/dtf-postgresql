@@ -1,29 +1,14 @@
-export DTF_TEST_ID="upgrade-locale-changed"
-export DTF_TEST_DESCRIPTION="Check postgresql-setup --upgrade is able to work
-even if the system locale changed significantly.  For example, the initdb was
-run with cs_CZ.utf8 locale and the current system locale is en_US.UTF-8."
+. "$top_srcdir"/library
 
+dtf_prereq pkg installed postgresql-upgrade
 
-run()
-{
-    dtf_postgresql_test_init
+pgdtf_init_server_test
 
-    dtf_postgresql_cb_upgrade()
-    {
-        rlRun 'PGSETUP_INITDB_OPTIONS="--locale=cs_CZ.utf8" postgresql-setup upgrade'
-    }
+# {% if config.os.id == "fedora" and config.os.version < 20 %}
+dtf_skip "not available for this box"
+# {% elif config.os.id == "rhel" and float(config.os.version) < 8 %}
+dtf_skip "not available for this box"
+# {% endif %}
 
-    dtf_postgresql_cb_upgrade_select()
-    {
-        if rlIsFedora 20 21 22; then
-            cat
-        else
-            cat >/dev/null
-        fi
-    }
-
-    dtf_postgresql_upgrade_tour "$(dtf_postgresql_data_mirror)" locale-cz.tar.gz
-    rlAssert0 "test wrapper should finish successfully" $?
-
-    dtf_postgresql_test_finish
-}
+export PGSETUP_INITDB_OPTIONS="--locale=cs_CZ.utf8"
+pgdtf_test_upgrades locale-cz.tar.gz

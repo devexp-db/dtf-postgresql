@@ -1,0 +1,4 @@
+export DTF_TEST_ID="upgrade-locale-changed"
+export DTF_TEST_DESCRIPTION="Check postgresql-setup --upgrade is able to work
+even if the system locale changed significantly.  For example, the initdb was
+run with cs_CZ.utf8 locale and the current system locale is en_US.UTF-8."

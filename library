@@ -10,6 +10,9 @@ __pgdtf_basic_assert ()
     test -f '/var/lib/pgsql/data/PG_VERSION' 2>/dev/null \
         && dtf_fail 'PG_VERSION file should not exist in $datadir'
 
+    test -e '/var/lib/pgsql/data-old' >/dev/null \
+        && dtf_fail '/var/lib/pgsql/data-old directory should not exist'
+
     test -e /var/lib/pgsql || return 0
     find /var/lib/pgsql/ -maxdepth 1 -name '*.log' -exec false {} +
     test $? -eq 0 || dtf_fail 'some .log files exist in $datadir'
@@ -34,17 +37,37 @@ pgdtf_cleanup_after_initdb ()
     dtf_assert cmd 'rm /var/lib/pgsql/*.log'     0
 }
 
-pgdtf_initdb ()
+pgdtf_cleanup_after_upgrade ()
 {
+    dtf_assert cmd 'rm -r /var/lib/pgsql/data/*'   0
+    dtf_assert cmd 'rm -r /var/lib/pgsql/data-old' 0
+}
+
+__pgdtf_setup_wrap ()
+{
+    _d_action=$1
     set dummy "{{ config.os.id }}" "{{ config.os.version }}" ; shift
     case $1-$2 in
       fedora-18|fedora-19|fedora-20|fedora-21|rhel-5*|rhel-6*|rhel-7*)
-        dtf_assert cmd 'postgresql-setup initdb'  0
+        dtf_assert cmd "postgresql-setup $_d_action"    0
         ;;
       fedora*|rhel*)
-        dtf_assert cmd 'postgresql-setup --initdb'  0
+        dtf_assert cmd "postgresql-setup --$_d_action"  0
+        ;;
+      *)
+        dtf_fail "not implemented for this architecture"
         ;;
     esac
+}
+
+pgdtf_simple_upgrade ()
+{
+    __pgdtf_setup_wrap upgrade
+}
+
+pgdtf_initdb ()
+{
+    __pgdtf_setup_wrap initdb
 }
 
 pgdtf_check_started ()
@@ -52,17 +75,27 @@ pgdtf_check_started ()
     dtf_assert cmd "service postgresql status" 0
 }
 
-pgdtf_initdb_and_start ()
+pgdtf_start ()
 {
-    pgdtf_initdb
     dtf_assert cmd 'service postgresql start' 0
     pgdtf_check_started
 }
 
-pgdtf_stop_and_clean ()
+pgdtf_initdb_and_start ()
+{
+    pgdtf_initdb
+    pgdtf_start
+}
+
+pgdtf_stop ()
 {
     dtf_assert cmd "service postgresql stop" 0
     pgdtf_check_stopped
+}
+
+pgdtf_stop_and_clean ()
+{
+    pgdtf_stop
     pgdtf_cleanup_after_initdb
 }
 
@@ -71,30 +104,16 @@ pgdtf_check_stopped ()
     dtf_assert cmd 'service postgresql status' 3
 }
 
-dtf_postgresql_test_init()
+pgdtf_unpack_remote_data_tarball ()
 {
-    rlJournalStart
-    dtf_postgresql_checkphase
-    rlPhaseStartTest
+    (
+      tarball="$1"
+      cd /var/lib/pgsql || return 1
+      set -o pipefail
+      echo "downloading '$tarball'"
+      curl "$tarball" | tar -xzf -
+    ) || dtf_fail "can't download and unpack '$1'"
 }
-
-dtf_postgresql_test_finish()
-{
-    rlPhaseEnd
-    dtf_generate_results_tarball "$BEAKERLIB_DIR"
-    dtf_postgresql_phase_cleanup
-    rlJournalEnd
-    rlGetTestState || return 1
-}
-
-dtf_postgresql_unpack_remote_data()
-(
-    local tarball="$1"
-    cd /var/lib/pgsql || return 1
-    set -o pipefail
-    echo "downloading '$tarball'"
-    curl "$tarball" | tar -xzf -
-)
 
 # Detect current distribution and print set of "distro version action" lines
 # where DISTRO may be rhel/fedora, VERSION may be e.g. 6.6 for rhel or 20 for
@@ -104,104 +123,120 @@ dtf_postgresql_unpack_remote_data()
 #
 # What versions are currently in supported Fedora versions:
 #
-#       f20 & f21       (9.3.8)
-#       f22 & rawhide   (9.4.3)
+#       f20 & f21               (9.3.10)
+#       f22 & f23 & rawhide     (9.4.5)
 #
 # Older Fedora versions:
 #
 #       f17             (9.1.9)
 #       f18             (9.2.5)
 #       f19             (9.2.9)
-
-dtf_postgresql_upgrade_matrix()
+pgdtf_upgrade_matrix ()
 {
-    if rlIsFedora 19; then
-        # echo fedora 17 upgrade
-        # echo fedora 18 run
-        echo fedora 19 run
-    elif rlIsFedora 20; then
-        # echo fedora 18 upgrade
-        echo fedora 19 upgrade
-        echo fedora 20 run
-    elif rlIsFedora 21; then
-        echo fedora 19 upgrade
-        echo fedora 20 run
-        echo fedora 21 run
-    elif rlIsFedora 22; then
-        echo fedora 20 upgrade
-        echo fedora 21 upgrade
-    elif rlIsFedora 23; then
-        echo fedora 20 upgrade
-        echo fedora 21 upgrade
-        echo fedora 22 run
-    fi
+    # {% if config.os.id == "fedora" and config.os.version == 19 %}
+    pgdtf_upgrade_matrix_result='
+        fedora-17-upgrade
+        fedora-18-run
+        fedora-19-run
+    '
+    # {% elif config.os.id == "fedora" and config.os.version == 20 %}
+    pgdtf_upgrade_matrix_result='
+        fedora-18-upgrade
+        fedora-19-upgrade
+        fedora-20-run
+    '
+    # {% elif config.os.id == "fedora" and config.os.version == 21 %}
+    pgdtf_upgrade_matrix_result='
+        fedora-18-upgrade
+        fedora-19-upgrade
+        fedora-20-run
+        fedora-21-run
+    '
+    # {% elif config.os.id == "fedora" and config.os.version == 22 %}
+    pgdtf_upgrade_matrix_result='
+        fedora-20-upgrade
+        fedora-21-upgrade
+        fedora-22-run
+    '
+    # {% elif config.os.id == "fedora" and config.os.version == 23 %}
+    pgdtf_upgrade_matrix_result='
+        fedora-20-upgrade
+        fedora-21-upgrade
+        fedora-22-run
+        fedora-23-run
+    '
+    # {% elif config.os.id == "fedora" and config.os.version == 24 %}
+    pgdtf_upgrade_matrix_result='
+        fedora-20-upgrade
+        fedora-21-upgrade
+        fedora-22-run
+        fedora-23-run
+        fedora-24-run
+    '
+    # {% endif %}
 }
 
-dtf_postgresql_cb_upgrade()
+
+__pgdtf_drastic_cleanup ()
 {
-    local dashdash=""
-    if rlIsFedora 22; then
-        dashdash="--"
-    fi
-    rlRun "postgresql-setup $dashdash""upgrade"
+    service postgresql stop
+    /bin/rm -rf /var/lib/pgsql/data/*
+    /bin/rm -rf /var/lib/pgsql/data-old
+    /bin/rm -rf /var/lib/pgsql/*.log
 }
 
-dtf_postgresql_cb_upgrade_select()
+
+pgdtf_test_upgrades ()
 {
-    cat
-}
+    dtf_fail_hooks='__pgdtf_drastic_cleanup'
+    _d_archive=$1 ; shift || dtf_die "pgdtf_test_upgrades requires argument"
+    pgdtf_mirror
+    pgdtf_upgrade_matrix
+    for _d_item in $pgdtf_upgrade_matrix_result
+    do
+      eval set dummy `echo "$_d_item" | sed 's/-/ /g'` ; shift
+      echo >&4 "checking upgrade from: $*"
+      _d_from_distro=$1
+      _d_from_distroversion=$2
+      _d_how_upgrade=$3
+      _d_url="$pgdtf_mirror_result/$_d_from_distro/$_d_from_distroversion/"
+      _d_url=$_d_url"{{ config.os.arch }}"/$_d_archive
 
-dtf_postgresql_upgrade_tour()
-{
-    local arch=$(uname -i)
-    local rv=0
+      pgdtf_unpack_remote_data_tarball "$_d_url"
 
-    items="$(dtf_postgresql_upgrade_matrix | dtf_postgresql_cb_upgrade_select)"
-    test "$items" = "$(:)" && return 0
-
-    while read distro version action; do
-        echo "--> Performing upgrade: $distro-$version - $action"
-
-        url="$1/$distro/$version/$arch/$2"
-
-        dtf_postgresql_unpack_remote_data "$url" || return 1
-
-        case "$action" in
+      clean_action=pgdtf_stop_and_clean
+      case $_d_how_upgrade in
         upgrade)
-            dtf_postgresql_cb_upgrade
-            if test $? -ne 0; then
-                rv=1
-                find /var/lib/pgsql -maxdepth 1 -name '*.log' | \
-                while read line; do
-                    echo "====== reading log $line ======"
-                    cat "$line"
-                done
-            fi
-            ;;
-        *)
-            ;;
-        esac
-
-        rlServiceStart postgresql
-        dtf_postgresql_check_started
-        rlServiceStop postgresql
-        dtf_postgresql_check_stopped
-
-        rm -rf /var/lib/pgsql/data
-    done <<<"$items"
-
-    return $rv
+          pgdtf_simple_upgrade
+          clean_action=pgdtf_cleanup_after_upgrade
+          ;;
+      esac
+      pgdtf_start
+      pgdtf_stop
+      $clean_action
+    done
+    dtf_fail_hooks=
 }
 
-dtf_postgresql_data_mirror()
+pgdtf_mirror ()
 {
-    if test -z "$___mirror_chosen"; then
-        for i in "${dtf_dataurls[@]}"; do
-            echo >&2 "trying $i"
-            timeout 3 curl "$i" >/dev/null && ___mirror_chosen="$i" && break
-        done
-        test -z "$___mirror_chosen" && return 1
-    fi
+    dtf_dataurls='
+http://10.3.8.255/root-tests/data/postgresql/latest
+http://pensioner.lab.eng.brq.redhat.com/root-tests/data/postgresql/latest
+'
+    test -n "$pgdtf_mirror_result" && return 0
 
-    echo "$___mirror_chosen"
+    _d_timeout=1
+    while test $_d_timeout -lt 32; do
+      for _d_url in $dtf_dataurls
+      do
+        echo >&2 "trying $_d_url for $_d_timeout seconds"
+        timeout $_d_timeout curl "$_d_url" >/dev/null \
+            && pgdtf_mirror_result="$_d_url" \
+            && return 0
+      done
+      _d_timeout=`expr $_d_timeout '*' 2`
+    done
+
+    dtf_fail "pgdtf_mirror: no mirror found"
 }

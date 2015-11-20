@@ -1,0 +1,2 @@
+export DTF_TEST_ID="upgrade-basic"
+export DTF_TEST_DESCRIPTION="Check postgresql-setup [--]upgrade"

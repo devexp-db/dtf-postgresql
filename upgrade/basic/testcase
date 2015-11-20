@@ -1,12 +1,7 @@
-export DTF_TEST_ID="upgrade-basic"
-export DTF_TEST_DESCRIPTION="Check postgresql-setup [--]upgrade"
+. "$top_srcdir"/library
 
-run()
-{
-    dtf_postgresql_test_init
+pgdtf_init_server_test
 
-    dtf_postgresql_upgrade_tour "$(dtf_postgresql_data_mirror)" basic.tar.gz
-    rlAssert0 "test wrapper should finish successfully" $?
+dtf_prereq pkg installed postgresql-upgrade
 
-    dtf_postgresql_test_finish
-}
+pgdtf_test_upgrades basic.tar.gz

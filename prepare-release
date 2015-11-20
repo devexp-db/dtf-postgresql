@@ -1,0 +1,24 @@
+#! /bin/sh
+
+name=dtf-postgresql
+version=0.0
+distros='
+    fedora-22-x86_64
+    fedora-23-x86_64
+'
+
+tmpdir=`mktemp -d /tmp/$name-XXXXXX` || exit 1
+
+for distro in $distros
+do
+    echo "preparing $distro"
+    (
+    tarballdir=$name-$distro-$version
+    export outputdir=$tmpdir/$tarballdir
+    mkdir -p "$outputdir" || exit 1
+    dtf-gen --distro "$distro" || exit 1
+    cd "$outputdir/.."
+    tar -caf "$tarballdir".tar.xz "$tarballdir" || exit 1
+    ) || exit 1
+done
+echo "done at $tmpdir"

@@ -11,13 +11,13 @@ where={{ m.libdir }}/pgsql/test/regress/
 rc=false
 su - postgres -c "make -C '$where' check" && rc=:
 
-if test $rc -ne 0; then
+$rc || {
   find "$where" -name 'regression.diffs' | \
     while read line; do
       echo "file $line"
       cat "$line"
     done
-fi
+}
 
 pgdtf_stop_and_clean
 

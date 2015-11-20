@@ -1,0 +1,3 @@
+export DTF_TEST_ID="upgrade-locale-utf8-syntax"
+export DTF_TEST_DESCRIPTION="Check postgresql-setup --upgrade works even when \
+the system locale changed from xx_XX.utf8 to xx_XX.UTF-8"

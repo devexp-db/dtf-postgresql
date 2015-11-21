@@ -31,15 +31,20 @@ pgdtf_init_server_test ()
     dtf_prereq pkg installed postgresql-server
 }
 
-pgdtf_cleanup_after_initdb ()
+pgdtf_cleanup_after_run ()
 {
     dtf_assert cmd 'rm -r /var/lib/pgsql/data/*' 0
+}
+
+pgdtf_cleanup_after_initdb ()
+{
+    pgdtf_cleanup_after_run
     dtf_assert cmd 'rm /var/lib/pgsql/*.log'     0
 }
 
 pgdtf_cleanup_after_upgrade ()
 {
-    dtf_assert cmd 'rm -r /var/lib/pgsql/data/*'   0
+    pgdtf_cleanup_after_initdb
     dtf_assert cmd 'rm -r /var/lib/pgsql/data-old' 0
 }
 
@@ -204,7 +209,7 @@ pgdtf_test_upgrades ()
 
       pgdtf_unpack_remote_data_tarball "$_d_url"
 
-      clean_action=pgdtf_stop_and_clean
+      clean_action=pgdtf_cleanup_after_run
       case $_d_how_upgrade in
         upgrade)
           pgdtf_simple_upgrade

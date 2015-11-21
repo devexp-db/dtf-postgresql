@@ -1,0 +1,22 @@
+(might-be) Destructive (root) tests for PostgreSQL package
+==========================================================
+
+Releases (should be packaged in future):
+
+    $ lftp http://209.132.179.109/dtf/_beta/releases/postgresql/
+    lftp> ls
+    -rw-r--r--  --  dtf-postgresql-fedora-22-x86_64-0.0.tar.xz
+    -rw-r--r--  --  dtf-postgresql-fedora-23-x86_64-0.0.tar.xz
+
+How to run (requires root and may break your machine, run on VM!):
+
+    # tar -xf dtf-postgresql-fedora-23-x86_64-0.0.tar.xz
+    # DTF_DBG_KEYWORDS=dtf_lib ./dtf-postgresql-fedora-23-x86_64-0.0/run
+
+How to build from git:
+
+    - install
+        - dg:      https://github.com/devexp-db/distgen
+        - dtf-gen: https://github.com/devexp-db/dtf
+
+    - run 'dtf-gen' from the project git root-directory

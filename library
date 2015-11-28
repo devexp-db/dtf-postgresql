@@ -204,6 +204,9 @@ __pgdtf_drastic_cleanup ()
     service postgresql stop
     /bin/rm -rf /var/lib/pgsql/data/*
     /bin/rm -rf /var/lib/pgsql/data-old
+
+    cp /var/lib/pgsql/*.log ./
+
     /bin/rm -rf /var/lib/pgsql/*.log
 }
 
@@ -262,4 +265,50 @@ http://209.132.179.109/dtf/_beta/data/latest
     done
 
     dtf_fail "pgdtf_mirror: no mirror found"
+}
+
+
+# pgdtf_fix_locale LANGS
+# ----------------------
+# Reinstall locale for LANGS (space separted list of language codes).
+pgdtf_fix_locale ()
+{
+    for_languages=$1
+    reinstall=false
+
+    # Fedora (probably 23+) glibc-common does not install all locales by
+    # default.
+    if test -f /etc/rpm/macros.image-language-conf; then
+      for _d_lang in $for_languages
+      do
+        set dummy "$_d_lang".{UTF-8,utf-8,utf8} ; shift
+        for _d_locale
+        do
+          case `rpm --eval "%_install_langs"` in
+            *"$_d_locale"*|all)
+              ;;
+            *)
+              sed -i 's/\(C:.*\)/\1:'"$_d_locale/" \
+                  /etc/rpm/macros.image-language-conf \
+                || dtf_fail "can't fix %_install_langs"
+              echo >&2 "reinstalling glibc-common to fix $_d_locale"
+              reinstall=:
+              ;;
+          esac
+        done
+      done
+    fi
+
+    for _d_lang in $for_languages
+    do
+      test -f /usr/share/i18n/locales/"$_d_lang" || {
+        reinstall=:
+        echo >&2 "reinstalling glibc-common to fix $_d_lang"
+      }
+    done
+
+    $reinstall || return 0
+    # https://bugzilla.redhat.com/show_bug.cgi?id=1129697
+    # {{ "\n    " + commands.pkginstaller.reinstall(['glibc-common'], {'docs': False}) }}
+    test $? -eq 0 || dtf_fail "can't reinstall glibc-common"
 }

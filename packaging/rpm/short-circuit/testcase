@@ -1,0 +1,77 @@
+# Check that 'rpmbuild --short-circuit works'.
+# Copyright (C) 2015 Red Hat, Inc.
+# Written by Pavel Raiskup.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+
+# Build of PostgreSQL package takes several minutes and thus
+# it makes sense to make sure that --short-circuit is not broken.
+
+. "$top_srcdir"/library
+
+dtf_skip "short circuit is broken ATM"
+
+dtf_assert root
+
+dtf_is_fedora || dtf_skip "not a fedora box"
+
+dtf_prereq pkg installed fedpkg
+dtf_prereq pkg installed rpm-build
+
+: ${dtfpg_homedir=`mktemp -d /tmp/dtfpg_tester-XXXXX`}
+export dtfpg_homedir
+cp "$top_srcdir"/library "$dtfpg_homedir"
+
+chown dtfpg_tester:dtfpg_tester "$dtfpg_homedir" -R
+
+userdel dtfpg_tester
+dtf_assert cmd 'useradd dtfpg_tester' 0
+dtf_assert cmd 'usermod dtfpg_tester --home "$dtfpg_homedir"' 0
+
+SU="/usr/sbin/runuser -s /bin/sh -l dtfpg_tester"
+
+package=postgresql
+
+prep_env=". \$HOME/library
+package=$package
+test -z \"\$package\" && exit 1
+set -x
+"
+
+$SU -c "$prep_env"'
+  fedpkg clone -a "$package" || exit 1
+  cd "$package"
+  dtf_distgit_branch
+  git checkout "$dtf_distgit_branch_result"
+  dtf_assert cmd "fedpkg srpm"          0
+' || dtf_fail "su command failed"
+
+
+dtf_builddep "$dtfpg_homedir"/postgresql/*src.rpm
+
+$SU -c "$prep_env"'
+  cd "$package"
+  dtf_assert cmd "pgdtf_run_rpmbuild --short-circuit -bp *.spec"        0
+
+  dtf_assert cmd "pgdtf_run_rpmbuild --short-circuit -bc *.spec"        0
+  dtf_assert cmd "pgdtf_run_rpmbuild --short-circuit -bc *.spec"        0
+
+  dtf_assert cmd "pgdtf_run_rpmbuild --short-circuit -bi *.spec"        0
+  dtf_assert cmd "pgdtf_run_rpmbuild --short-circuit -bi *.spec"        0
+
+  dtf_assert cmd "pgdtf_run_rpmbuild --short-circuit -bb *.spec"        0
+  dtf_assert cmd "pgdtf_run_rpmbuild --short-circuit -bb *.spec"        0
+' || dtf_fail "su command failed"

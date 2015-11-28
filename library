@@ -312,3 +312,18 @@ pgdtf_fix_locale ()
     # {{ "\n    " + commands.pkginstaller.reinstall(['glibc-common'], {'docs': False}) }}
     test $? -eq 0 || dtf_fail "can't reinstall glibc-common"
 }
+
+
+# pgdtf_run_rpmbuild ARGS..
+# -------------------------
+# Run rpmbuild against local directory.
+pgdtf_run_rpmbuild ()
+{
+    rpmbuild \
+        --define "_sourcedir $PWD"      \
+        --define "_rpmdir $PWD"         \
+        --define "_specdir $PWD"        \
+        --define "_builddir $PWD"       \
+        --define "_srcrpmdir $PWD"      \
+        "$@"
+}

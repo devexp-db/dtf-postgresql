@@ -217,7 +217,7 @@ pgdtf_test_upgrades ()
     for _d_item in $pgdtf_upgrade_matrix_result
     do
       eval set dummy `echo "$_d_item" | sed 's/-/ /g'` ; shift
-      echo >&4 "checking upgrade from: $*"
+      echo >&2 "checking upgrade from: $*"
       _d_from_distro=$1
       _d_from_distroversion=$2
       _d_how_upgrade=$3

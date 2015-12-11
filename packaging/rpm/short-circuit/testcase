@@ -33,11 +33,11 @@ dtf_prereq pkg installed rpm-build
 export dtfpg_homedir
 cp "$top_srcdir"/library "$dtfpg_homedir"
 
-chown dtfpg_tester:dtfpg_tester "$dtfpg_homedir" -R
-
 userdel dtfpg_tester
 dtf_assert cmd 'useradd dtfpg_tester' 0
 dtf_assert cmd 'usermod dtfpg_tester --home "$dtfpg_homedir"' 0
+
+chown dtfpg_tester:dtfpg_tester "$dtfpg_homedir" -R
 
 SU="/usr/sbin/runuser -s /bin/sh -l dtfpg_tester"
 

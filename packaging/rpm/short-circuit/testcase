@@ -22,8 +22,6 @@
 
 . "$top_srcdir"/library
 
-dtf_skip "short circuit is broken ATM"
-
 dtf_assert root
 
 dtf_is_fedora || dtf_skip "not a fedora box"

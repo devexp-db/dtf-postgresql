@@ -20,10 +20,11 @@
 
 
 name=dtf-postgresql
-version=0.0
+version=0.1
 distros='
     fedora-22-x86_64
     fedora-23-x86_64
+    fedora-rawhide-x86_64
 '
 
 tmpdir=`mktemp -d /tmp/$name-XXXXXX` || exit 1

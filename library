@@ -189,10 +189,8 @@ pgdtf_upgrade_matrix ()
     '
     # {% elif config.os.id == "fedora" and config.os.version == 24 %}
     pgdtf_upgrade_matrix_result='
-        fedora-20-upgrade
-        fedora-21-upgrade
-        fedora-22-run
-        fedora-23-run
+        fedora-22-upgrade
+        fedora-23-upgrade
         fedora-24-run
     '
     # {% endif %}

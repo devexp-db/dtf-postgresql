@@ -28,6 +28,7 @@ dtf_is_fedora || dtf_skip "not a fedora box"
 
 dtf_prereq pkg installed fedpkg
 dtf_prereq pkg installed rpm-build
+dtf_prereq pkg installed @buildsys-build
 
 : ${dtfpg_homedir=`mktemp -d /tmp/dtfpg_tester-XXXXX`}
 export dtfpg_homedir

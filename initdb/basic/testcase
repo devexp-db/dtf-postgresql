@@ -21,9 +21,9 @@ pgdtf_init_server_test
 
 try_start_stop ()
 {
-    dtf_assert cmd "service postgresql start"                   0
-    dtf_assert cmd "service postgresql stop"                    0
-    dtf_assert cmd "test -f /var/lib/pgsql/data/PG_VERSION"     0
+    dtf_assert cmd "service ${pgdtf_service} start"                     0
+    dtf_assert cmd "service ${pgdtf_service} stop"                      0
+    dtf_assert cmd "test -f ${pgdtf_datadir}/PG_VERSION"                0
     pgdtf_cleanup_after_initdb
 }
 
@@ -44,14 +44,18 @@ newer_systems ()
     try_start_stop
 }
 
+if test -n $pgscl; then
+    newer_systems
+else
 # {% if config.os.id == "fedora" and config.os.version < 22 %}
-older_systems
-# {% elif config.os.id == "rhel" and float(config.os.version) < 8 %}
-older_systems
+    older_systems
+# {% elif config.os.id == "rhel" and config.os.version|float() < 8 %}
+    older_systems
 # {% elif config.os.id in ["fedora", "rhel"] %}
-newer_systems
+    newer_systems
 # {% else %}
 # TODO: Fail somehow during 'dtf-gen'.  We don't dtf_skip here because this
 # should (a) never happen and (b) it would not FAIL the whole testsuite.
 dtf_fail "this test is not available for this system"
 # {% endif %}
+fi

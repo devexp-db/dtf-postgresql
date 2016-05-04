@@ -17,22 +17,45 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 
+export pgscl={{ m.pgscl }}
+export pgscl_namespace=${pgscl+$pgscl-}
+export pgscl_prefix=${pgscl+/opt/rh/$pgscl/root}
+
+export pgdtf_service=${pgscl_namespace}postgresql
+
+export pgdtf_homedir=/var/lib/pgsql
+export pgdtf_datadir=/var/lib/pgsql/data
+test -n "$pgscl" && pgdtf_datadir=/var/opt/rh/$pgscl/lib/pgsql/data
+export pgdtf_server=${pgscl_namespace}postgresql-server
+
+pgdtf_scl_wrapper ()
+{
+    if test -z "$pgscl"; then
+        eval "$1"
+    else
+        scl enable $pgscl "$1"
+    fi
+}
+
+dtf_cmd_wrapper=pgdtf_scl_wrapper
+
+
 __pgdtf_basic_assert ()
 {
-    ### Check that we can't actually brake user's system. ###
-    dtf_assert cmd 'service postgresql status' 3
+    ### Check that we can't actually break user's system. ###
+    dtf_assert cmd "service $pgdtf_service status" 3
 
     dtf_assert_right_distro
 
-    test -f '/var/lib/pgsql/data/PG_VERSION' 2>/dev/null \
-        && dtf_fail 'PG_VERSION file should not exist in $datadir'
+    test -f "$pgdtf_datadir"/PG_VERSION 2>/dev/null \
+        && dtf_fail "PG_VERSION file should not exist in $pgdtf_datadir"
 
-    test -e '/var/lib/pgsql/data-old' >/dev/null \
-        && dtf_fail '/var/lib/pgsql/data-old directory should not exist'
+    test -e "$pgdtf_homedir/data-old" >/dev/null \
+        && dtf_fail "$pgdtf_homedir/data-old directory should not exist"
 
-    test -e /var/lib/pgsql || return 0
-    find /var/lib/pgsql/ -maxdepth 1 -name '*.log' -exec false {} +
-    test $? -eq 0 || dtf_fail 'some .log files exist in $datadir'
+    test -e "$pgdtf_homedir" || return 0
+    find "$pgdtf_homedir" -maxdepth 1 -name '*.log' -exec false {} +
+    test $? -eq 0 || dtf_fail "some .log files exist in $pgdtf_homedir"
 }
 
 pgdtf_init ()
@@ -44,25 +67,25 @@ pgdtf_init ()
 
 pgdtf_init_server_test ()
 {
+    dtf_prereq pkg installed $pgdtf_server
     pgdtf_init
-    dtf_prereq pkg installed postgresql-server
 }
 
 pgdtf_cleanup_after_run ()
 {
-    dtf_assert cmd 'rm -r /var/lib/pgsql/data/*' 0
+    dtf_assert cmd 'rm -r $pgdtf_datadir/*' 0
 }
 
 pgdtf_cleanup_after_initdb ()
 {
     pgdtf_cleanup_after_run
-    dtf_assert cmd 'rm /var/lib/pgsql/*.log'     0
+    dtf_assert cmd 'rm $pgdtf_homedir/*.log'     0
 }
 
 pgdtf_cleanup_after_upgrade ()
 {
     pgdtf_cleanup_after_initdb
-    dtf_assert cmd 'rm -r /var/lib/pgsql/data-old' 0
+    dtf_assert cmd 'rm -r $pgdtf_homedir/data-old' 0
 }
 
 __pgdtf_setup_wrap ()
@@ -193,6 +216,10 @@ pgdtf_upgrade_matrix ()
         fedora-23-upgrade
         fedora-24-run
     '
+    # {% else %}
+
+    pgdtf_upgrade_matrix_result=
+
     # {% endif %}
 }
 

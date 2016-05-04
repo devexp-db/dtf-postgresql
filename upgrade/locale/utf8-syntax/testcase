@@ -23,7 +23,7 @@ pgdtf_init_server_test
 
 # {% if config.os.id == "fedora" and config.os.version < 20 %}
 dtf_skip "not available for this box"
-# {% elif config.os.id == "rhel" and float(config.os.version) < 8 %}
+# {% elif config.os.id == "rhel" and config.os.version|float() < 8 %}
 dtf_skip "not available for this box"
 # {% endif %}
 

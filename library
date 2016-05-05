@@ -25,8 +25,28 @@ export pgdtf_service=${pgscl_namespace}postgresql
 
 export pgdtf_homedir=/var/lib/pgsql
 export pgdtf_datadir=/var/lib/pgsql/data
-test -n "$pgscl" && pgdtf_datadir=/var/opt/rh/$pgscl/lib/pgsql/data
+export pgdtf_datadirorigin=/var/lib/pgsql/data
+export pgdtf_olddata=/var/lib/pgsql/data-old
+test -n "$pgscl" && {
+    pgdtf_datadir=/var/opt/rh/$pgscl/lib/pgsql/data
+    pgdtf_olddata=/var/lib/pgsql/data
+}
+
 export pgdtf_server=${pgscl_namespace}postgresql-server
+
+
+pgdtf_scl_paths ()
+{
+    case $1 in
+    postgresql92)
+        pgdtf_scl_paths_data=/opt/rh/postgresql92/root/var/lib/pgsql/data
+        ;;
+    *)
+        pgdtf_scl_paths_data=/var/opt/rh/"$1"/lib/pgsql/data
+        ;;
+    esac
+}
+
 
 pgdtf_scl_wrapper ()
 {
@@ -36,6 +56,25 @@ pgdtf_scl_wrapper ()
         scl enable $pgscl "$1"
     fi
 }
+
+
+pgdtf_empty_dir ()
+(
+    cd "$1" || exit 2
+    for _d_item in .* *; do
+        case $_d_item in
+        ..|.)
+            continue
+            ;;
+        \*)
+            test -f '*' && exit 1
+            ;;
+        *)
+            exit 1
+        esac
+    done
+    exit 0
+)
 
 dtf_cmd_wrapper=pgdtf_scl_wrapper
 
@@ -49,10 +88,6 @@ __pgdtf_basic_assert ()
 
     test -f "$pgdtf_datadir"/PG_VERSION 2>/dev/null \
         && dtf_fail "PG_VERSION file should not exist in $pgdtf_datadir"
-
-    test -e "$pgdtf_homedir/data-old" >/dev/null \
-        && dtf_fail "$pgdtf_homedir/data-old directory should not exist"
-
     test -e "$pgdtf_homedir" || return 0
     find "$pgdtf_homedir" -maxdepth 1 -name '*.log' -exec false {} +
     test $? -eq 0 || dtf_fail "some .log files exist in $pgdtf_homedir"
@@ -85,14 +120,28 @@ pgdtf_cleanup_after_initdb ()
 pgdtf_cleanup_after_upgrade ()
 {
     pgdtf_cleanup_after_initdb
-    dtf_assert cmd 'rm -r $pgdtf_homedir/data-old' 0
+    dtf_assert cmd 'rm -r $pgdtf_olddata' 0
 }
 
 __pgdtf_setup_wrap ()
 {
-    _d_action=$1
+    _d_action=$1 ; shift
+    func_quote eval "$@"
+    test -n "$func_quote_result" && _d_action="$_d_action $func_quote_result"
+
     set dummy "{{ config.os.id }}" "{{ config.os.version }}" ; shift
-    case $1-$2 in
+
+    case ${pgscl+scl-}$1-$2 in
+      scl-*)
+        case $pgscl in
+          postgresql92)
+            dtf_assert cmd "postgresql-setup $_d_action"    0
+            ;;
+          *)
+            dtf_assert cmd "postgresql-setup --$_d_action"  0
+            ;;
+        esac
+        ;;
       fedora-18|fedora-19|fedora-20|fedora-21|rhel-5*|rhel-6*|rhel-7*)
         dtf_assert cmd "postgresql-setup $_d_action"    0
         ;;
@@ -107,7 +156,7 @@ __pgdtf_setup_wrap ()
 
 pgdtf_simple_upgrade ()
 {
-    __pgdtf_setup_wrap upgrade
+    __pgdtf_setup_wrap upgrade "$@"
 }
 
 pgdtf_initdb ()
@@ -117,12 +166,12 @@ pgdtf_initdb ()
 
 pgdtf_check_started ()
 {
-    dtf_assert cmd "service postgresql status" 0
+    dtf_assert cmd "service ${pgdtf_service} status" 0
 }
 
 pgdtf_start ()
 {
-    dtf_assert cmd 'service postgresql start' 0
+    dtf_assert cmd 'service ${pgdtf_service} start' 0
     pgdtf_check_started
 }
 
@@ -134,7 +183,7 @@ pgdtf_initdb_and_start ()
 
 pgdtf_stop ()
 {
-    dtf_assert cmd "service postgresql stop" 0
+    dtf_assert cmd "service ${pgdtf_service} stop" 0
     pgdtf_check_stopped
 }
 
@@ -146,16 +195,19 @@ pgdtf_stop_and_clean ()
 
 pgdtf_check_stopped ()
 {
-    dtf_assert cmd 'service postgresql status' 3
+    dtf_assert cmd 'service ${pgdtf_service} status' 3
 }
 
 pgdtf_unpack_remote_data_tarball ()
 {
     (
       tarball="$1"
-      cd /var/lib/pgsql || return 1
+      test -d "$2" || {
+          mkdir -p "$2"
+      }
+      cd "$2"
       set -o pipefail
-      echo "downloading '$tarball'"
+      echo "downloading '$tarball' into '$2' directory"
       curl "$tarball" | tar -xzf -
     ) || dtf_fail "can't download and unpack '$1'"
 }
@@ -216,10 +268,15 @@ pgdtf_upgrade_matrix ()
         fedora-23-upgrade
         fedora-24-run
     '
+    # {% elif config.os.id == "rhel" and m.pgscl != "" %}
+    # {%   if m.pgscl == "rh-postgresql94" %}
+    pgdtf_upgrade_matrix_result='
+        rhel-7-upgrade
+        rhel-7:postgresql92-upgrade
+    '
+    # {%   endif %}
     # {% else %}
-
     pgdtf_upgrade_matrix_result=
-
     # {% endif %}
 }
 
@@ -227,12 +284,11 @@ pgdtf_upgrade_matrix ()
 __pgdtf_drastic_cleanup ()
 {
     service postgresql stop
-    /bin/rm -rf /var/lib/pgsql/data/*
-    /bin/rm -rf /var/lib/pgsql/data-old
+    /bin/rm -rf "$pgdtf_datadir"/*
 
-    cp /var/lib/pgsql/*.log ./
+    cp "$pgdtf_homedir"/*.log ./
 
-    /bin/rm -rf /var/lib/pgsql/*.log
+    /bin/rm -rf "$pgdtf_homedir"/*.log
 }
 
 
@@ -246,18 +302,53 @@ pgdtf_test_upgrades ()
     do
       eval set dummy `echo "$_d_item" | sed 's/-/ /g'` ; shift
       echo >&2 "checking upgrade from: $*"
+      _d_from_scl=
+      _d_datadir=$pgdtf_datadirorigin
+      _d_upgrade_args=
+
       _d_from_distro=$1
-      _d_from_distroversion=$2
+      case $2 in
+      *:*)
+        _d_from_distroversion=${2%%:*}
+        _d_from_scl=${2##*:}
+        pgdtf_scl_paths "$_d_from_scl"
+        pgdtf_olddata=$pgdtf_scl_paths_data
+        func_quote eval --upgrade-from $_d_from_scl-postgresql
+        _d_upgrade_args=$func_quote_result
+        _d_datadir=$pgdtf_scl_paths_data
+        dtf_prereq pkg installed "${_d_from_scl}-postgresql-server"
+        ;;
+      *)
+        _d_from_distroversion=$2
+        ;;
+      esac
+
       _d_how_upgrade=$3
       _d_url="$pgdtf_mirror_result/$_d_from_distro/$_d_from_distroversion/"
+      test -n "$_d_from_scl" && {
+          _d_url="$_d_url/scl/$_d_from_scl/"
+      }
       _d_url=$_d_url"{{ config.os.arch }}"/$_d_archive
 
-      pgdtf_unpack_remote_data_tarball "$_d_url"
+      case $_d_datadir in
+        *data-old)
+          test -e "$_d_datadir" >/dev/null \
+            && dtf_fail "$_d_datadir directory should not exist"
+          ;;
+        *)
+          if test -d "$_d_datadir"; then
+             pgdtf_empty_dir "$_d_datadir" \
+                || dtf_fail "$_d_datadir should be empty"
+          fi
+          ;;
+      esac
+
+      pgdtf_unpack_remote_data_tarball "$_d_url" "$(dirname "$_d_datadir")"
 
       clean_action=pgdtf_cleanup_after_run
       case $_d_how_upgrade in
         upgrade)
-          pgdtf_simple_upgrade
+          eval pgdtf_simple_upgrade $_d_upgrade_args
           clean_action=pgdtf_cleanup_after_upgrade
           ;;
       esac

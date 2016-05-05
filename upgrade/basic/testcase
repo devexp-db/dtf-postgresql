@@ -19,6 +19,6 @@
 
 pgdtf_init_server_test
 
-dtf_prereq pkg installed postgresql-upgrade
+dtf_prereq pkg installed "${pgscl_namespace}postgresql-upgrade"
 
 pgdtf_test_upgrades basic.tar.gz

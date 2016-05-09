@@ -232,47 +232,53 @@ pgdtf_upgrade_matrix ()
 {
     # {% if config.os.id == "fedora" and config.os.version == 19 %}
     pgdtf_upgrade_matrix_result='
-        fedora-17-upgrade
-        fedora-18-run
-        fedora-19-run
+        fedora_17_upgrade
+        fedora_18_run
+        fedora_19_run
     '
     # {% elif config.os.id == "fedora" and config.os.version == 20 %}
     pgdtf_upgrade_matrix_result='
-        fedora-18-upgrade
-        fedora-19-upgrade
-        fedora-20-run
+        fedora_18_upgrade
+        fedora_19_upgrade
+        fedora_20_run
     '
     # {% elif config.os.id == "fedora" and config.os.version == 21 %}
     pgdtf_upgrade_matrix_result='
-        fedora-18-upgrade
-        fedora-19-upgrade
-        fedora-20-run
-        fedora-21-run
+        fedora_18_upgrade
+        fedora_19_upgrade
+        fedora_20_run
+        fedora_21_run
     '
     # {% elif config.os.id == "fedora" and config.os.version == 22 %}
     pgdtf_upgrade_matrix_result='
-        fedora-20-upgrade
-        fedora-21-upgrade
-        fedora-22-run
+        fedora_20_upgrade
+        fedora_21_upgrade
+        fedora_22_run
     '
     # {% elif config.os.id == "fedora" and config.os.version == 23 %}
     pgdtf_upgrade_matrix_result='
-        fedora-20-upgrade
-        fedora-21-upgrade
-        fedora-22-run
-        fedora-23-run
+        fedora_20_upgrade
+        fedora_21_upgrade
+        fedora_22_run
+        fedora_23_run
     '
     # {% elif config.os.id == "fedora" and config.os.version == 24 %}
     pgdtf_upgrade_matrix_result='
-        fedora-22-upgrade
-        fedora-23-upgrade
-        fedora-24-run
+        fedora_22_upgrade
+        fedora_23_upgrade
+        fedora_24_run
     '
     # {% elif config.os.id == "rhel" and m.pgscl != "" %}
     # {%   if m.pgscl == "rh-postgresql94" %}
     pgdtf_upgrade_matrix_result='
-        rhel-7-upgrade
-        rhel-7:postgresql92-upgrade
+        rhel_7_upgrade
+        rhel_7:postgresql92_upgrade
+    '
+    # {%   elif m.pgscl == "rh-postgresql95" %}
+    pgdtf_upgrade_matrix_result='
+        rhel_7_upgrade
+        rhel_7:postgresql92_upgrade
+        rhel_7:rh-postgresql94_upgrade
     '
     # {%   endif %}
     # {% else %}
@@ -300,7 +306,7 @@ pgdtf_test_upgrades ()
     pgdtf_upgrade_matrix
     for _d_item in $pgdtf_upgrade_matrix_result
     do
-      eval set dummy `echo "$_d_item" | sed 's/-/ /g'` ; shift
+      eval set dummy `echo "$_d_item" | sed 's/_/ /g'` ; shift
       echo >&2 "checking upgrade from: $*"
       _d_from_scl=
       _d_datadir=$pgdtf_datadirorigin

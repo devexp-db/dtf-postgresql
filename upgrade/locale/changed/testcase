@@ -17,8 +17,6 @@
 
 . "$top_srcdir"/library
 
-dtf_prereq pkg installed "${pgscl_namespace}postgresql-upgrade"
-
 pgdtf_init_server_test
 
 pgdtf_fix_locale "cs_CZ"

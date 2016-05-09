@@ -305,6 +305,7 @@ pgdtf_test_upgrades ()
       _d_from_scl=
       _d_datadir=$pgdtf_datadirorigin
       _d_upgrade_args=
+      _d_old_server_pkg=postgresql-upgrade
 
       _d_from_distro=$1
       case $2 in
@@ -316,12 +317,19 @@ pgdtf_test_upgrades ()
         func_quote eval --upgrade-from $_d_from_scl-postgresql
         _d_upgrade_args=$func_quote_result
         _d_datadir=$pgdtf_scl_paths_data
-        dtf_prereq pkg installed "${_d_from_scl}-postgresql-server"
+        _d_old_server_pkg="${_d_from_scl}-postgresql-server"
         ;;
       *)
         _d_from_distroversion=$2
+        if test -z "$pgscl"; then
+            _d_old_server_pkg=postgresql-upgrade
+        else
+            _d_old_server_pkg=postgresql-server
+        fi
         ;;
       esac
+
+      dtf_prereq pkg installed "$_d_old_server_pkg"
 
       _d_how_upgrade=$3
       _d_url="$pgdtf_mirror_result/$_d_from_distro/$_d_from_distroversion/"

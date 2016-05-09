@@ -17,8 +17,6 @@
 
 . "$top_srcdir"/library
 
-dtf_prereq pkg installed "${pgscl_namespace}postgresql-upgrade"
-
 pgdtf_init_server_test
 
 # {% if config.os.id == "fedora" and config.os.version < 20 %}

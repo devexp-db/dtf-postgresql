@@ -17,16 +17,23 @@
 
 . "$top_srcdir"/library
 
-dtf_prereq pkg installed postgresql-test
+dtf_prereq pkg installed "${pgscl_namespace}postgresql-test"
 dtf_prereq pkg installed make
 
 pgdtf_init_server_test
 pgdtf_initdb_and_start
 
-where={{ m.libdir }}/pgsql/test/regress/
+where=$pgscl_prefix{{ m.libdir }}/pgsql/test/regress/
+
+cmd="make -C $where check"
+if test -n "$pgscl"; then
+    func_quote eval scl enable "$pgscl" "$cmd"
+    cmd=$func_quote_result
+fi
 
 rc=false
-su - postgres -c "make -C '$where' check" && rc=:
+dtf_debug pgdtf_upstream_testsuite "running '$cmd'"
+su - postgres -c "$cmd" && rc=:
 
 $rc || {
   find "$where" -name 'regression.diffs' | \

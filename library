@@ -318,6 +318,15 @@ pgdtf_test_upgrades ()
         _d_upgrade_args=$func_quote_result
         _d_datadir=$pgdtf_scl_paths_data
         _d_old_server_pkg="${_d_from_scl}-postgresql-server"
+
+        case $pgscl in
+        rh-postgresql94|postgresql92)
+            # we installed 'pg_upgrade' binary into *-upgrade subpackage
+            # previously.  From rh-postgresql95 the pg_upgrade binary is in base
+            # package (e.g. in rh-postgresql95-postgresql).
+            dtf_prereq pkg installed "${pgscl_namespace}postgresql-upgrade"
+            ;;
+        esac
         ;;
       *)
         _d_from_distroversion=$2

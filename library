@@ -207,7 +207,7 @@ pgdtf_unpack_remote_data_tarball ()
       }
       cd "$2"
       set -o pipefail
-      echo "downloading '$tarball' into '$2' directory"
+      dtf_debug pgdtf_lib "downloading '$tarball' into '$2' directory"
       curl "$tarball" | tar -xzf -
     ) || dtf_fail "can't download and unpack '$1'"
 }
@@ -390,6 +390,8 @@ pgdtf_fix_locale ()
 {
     for_languages=$1
     reinstall=false
+
+    dtf_debug pgdtf_lib "making sure '$for_languages' langs are installed"
 
     # Fedora (probably 23+) glibc-common does not install all locales by
     # default.

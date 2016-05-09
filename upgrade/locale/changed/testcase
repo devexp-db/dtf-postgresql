@@ -30,5 +30,8 @@ dtf_skip "not available for this box"
 dtf_skip "not available for this box"
 # {% endif %}
 
+# This is for postgresql-setup script;  Content of this variable is
+# automatically passed down to 'initdb' script before the in-place upgrade by
+# pg_upgrade is done.
 export PGSETUP_INITDB_OPTIONS="--locale=cs_CZ.utf8"
 pgdtf_test_upgrades locale-cz.tar.gz

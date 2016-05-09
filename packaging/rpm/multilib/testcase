@@ -26,6 +26,7 @@ arch=i686
 # {% endif %}
 
 test $arch == none && dtf_skip "test only for 64bit"
+test -n "$pgscl" && dtf_skip "there is no multilib package for SCLs"
 
 dtf_prereq pkg installed postgresql-devel
 dtf_prereq pkg installed postgresql-devel.$arch

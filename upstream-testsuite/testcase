@@ -24,6 +24,22 @@ pgdtf_init_server_test
 pgdtf_initdb_and_start
 
 where=$pgscl_prefix{{ m.libdir }}/pgsql/test/regress/
+makefile=$where/Makefile
+
+dtf_assert cmd "test -f $makefile"        0
+
+if test -n "$pgscl" \
+   && grep -- "--psqldir='/usr/bin'" < "$makefile" > /dev/null
+then
+    # workaround for rhbz#1334276
+    desired_option="--bindir='$pgscl_prefix{{ m.bindir }}'"
+    case $pgscl in
+    rh-postgresql94|postgresql92)
+        desired_option="--psqldir='$pgscl_prefix{{ m.bindir }}'"
+        ;;
+    esac
+    sed -i "s|--psqldir='/usr/bin'|$desired_option|" "$makefile"
+fi
 
 cmd="make -C $where check"
 if test -n "$pgscl"; then

@@ -18,6 +18,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+: ${DTF_GEN=dtf-gen}
 
 name=dtf-postgresql
 version=0.1
@@ -36,7 +37,7 @@ do
     tarballdir=$name-$distro-$version
     export outputdir=$tmpdir/$tarballdir
     mkdir -p "$outputdir" || exit 1
-    dtf-gen --distro "$distro" || exit 1
+    "$DTF_GEN" --distro "$distro" || exit 1
     cd "$outputdir/.."
     tar -caf "$tarballdir".tar.xz "$tarballdir" || exit 1
     ) || exit 1

@@ -18,8 +18,8 @@
 
 
 export pgscl={{ m.pgscl }}
-export pgscl_namespace=${pgscl+$pgscl-}
-export pgscl_prefix=${pgscl+/opt/rh/$pgscl/root}
+export pgscl_namespace=${pgscl:+$pgscl-}
+export pgscl_prefix=${pgscl:+/opt/rh/$pgscl/root}
 
 export pgdtf_service=${pgscl_namespace}postgresql
 

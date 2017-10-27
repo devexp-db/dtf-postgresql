@@ -23,8 +23,9 @@
 name=dtf-postgresql
 version=0.1
 distros='
-    fedora-22-x86_64
-    fedora-23-x86_64
+    fedora-25-x86_64
+    fedora-26-x86_64
+    fedora-27-x86_64
     fedora-rawhide-x86_64
 '
 

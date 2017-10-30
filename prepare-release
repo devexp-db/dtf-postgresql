@@ -22,12 +22,14 @@
 
 name=dtf-postgresql
 version=0.1
+if test -z "$distros"; then
 distros='
     fedora-25-x86_64
     fedora-26-x86_64
     fedora-27-x86_64
     fedora-rawhide-x86_64
 '
+fi
 
 tmpdir=`mktemp -d /tmp/$name-XXXXXX` || exit 1
 

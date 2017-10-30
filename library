@@ -24,9 +24,9 @@ export pgscl_prefix=${pgscl:+/opt/rh/$pgscl/root}
 export pgdtf_service=${pgscl_namespace}postgresql
 
 export pgdtf_homedir=/var/lib/pgsql
-export pgdtf_datadir=/var/lib/pgsql/data
-export pgdtf_datadirorigin=/var/lib/pgsql/data
-export pgdtf_olddata=/var/lib/pgsql/data-old
+export pgdtf_datadir=/var/lib/pgsql/data/data
+export pgdtf_datadirorigin=/var/lib/pgsql/data/data
+export pgdtf_olddata=/var/lib/pgsql/data/data-old
 test -n "$pgscl" && {
     pgdtf_datadir=/var/opt/rh/$pgscl/lib/pgsql/data
     pgdtf_olddata=/var/lib/pgsql/data
@@ -85,6 +85,9 @@ __pgdtf_basic_assert ()
     dtf_assert cmd "service $pgdtf_service status" 3
 
     dtf_assert_right_distro
+
+    test -f "/var/lib/pgsql/data/PG_VERSION" 2>/dev/null \
+        && dtf_fail "/var/lib/pgsql/data/PG_VERSION shouldn't exist"
 
     test -f "$pgdtf_datadir"/PG_VERSION 2>/dev/null \
         && dtf_fail "PG_VERSION file should not exist in $pgdtf_datadir"
@@ -268,6 +271,32 @@ pgdtf_upgrade_matrix ()
         fedora_23_upgrade
         fedora_24_run
     '
+    # {% elif config.os.id == "fedora" and config.os.version == 25 %}
+    pgdtf_upgrade_matrix_result='
+        fedora_22_upgrade
+        fedora_23_upgrade
+        fedora_24_run
+        fedora_25_run
+    '
+    # {% elif config.os.id == "fedora" and config.os.version == 26 %}
+    pgdtf_upgrade_matrix_result='
+        fedora_24_upgrade
+        fedora_25_upgrade
+        fedora_26_run
+    '
+    # {% elif config.os.id == "fedora" and config.os.version == 27 %}
+    pgdtf_upgrade_matrix_result='
+        fedora_24_upgrade
+        fedora_25_upgrade
+        fedora_26_run
+        fedora_27_run
+    '
+    # {% elif config.os.id == "fedora" and config.os.version == 28 %}
+    pgdtf_upgrade_matrix_result='
+        fedora_26_upgrade
+        fedora_27_upgrade
+        fedora_28_run
+    '
     # {% elif config.os.id == "rhel" and m.pgscl != "" %}
     # {%   if m.pgscl == "rh-postgresql94" %}
     pgdtf_upgrade_matrix_result='
@@ -297,6 +326,19 @@ __pgdtf_drastic_cleanup ()
     /bin/rm -rf "$pgdtf_homedir"/*.log
 }
 
+pgdtf_fix_service_datadir ()
+{
+    # TODO: fix for RHEL6
+    hookdir=/etc/systemd/system/postgresql.service.d/
+    mkdir -p "$hookdir" >/dev/null \
+        || dtf_fail "can't create systemd hook directory"
+
+    cat > "$hookdir"/dtf-tests.conf <<EOF
+[Service]
+Environment=PGDATA=$pgdtf_datadir
+EOF
+    systemctl daemon-reload
+}
 
 pgdtf_test_upgrades ()
 {
@@ -366,6 +408,7 @@ pgdtf_test_upgrades ()
           ;;
       esac
 
+      pgdtf_fix_service_datadir
       pgdtf_unpack_remote_data_tarball "$_d_url" "$(dirname "$_d_datadir")"
 
       clean_action=pgdtf_cleanup_after_run
@@ -386,7 +429,7 @@ pgdtf_mirror ()
 {
     dtf_dataurls='
 http://pensioner.lab.eng.brq.redhat.com/root-tests/data/postgresql/latest
-http://209.132.179.109/dtf/_beta/data/latest
+https://praiskup.fedorapeople.org/dtf/data/postgresql/latest
 '
     test -n "$pgdtf_mirror_result" && return 0
 

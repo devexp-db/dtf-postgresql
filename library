@@ -100,6 +100,7 @@ pgdtf_init ()
 {
     # TODO: don't require findutils
     dtf_prereq pkg installed findutils
+    pgdtf_fix_service_datadir
     __pgdtf_basic_assert
 }
 
